@@ -1,0 +1,86 @@
+<!doctype html>
+<html>
+<head>
+<script>
+  const proxyPath = "https://oldweb.today/proxy/";
+
+  async function initSW() {
+    const scope = "./";
+
+    await navigator.serviceWorker.register("./sw.js", {scope});
+
+    navigator.serviceWorker.addEventListener("message", (event) => {
+      this.inited = true;
+    });
+
+    const baseUrl = new URL(window.location);
+    baseUrl.hash = "";
+
+    const msg = {
+      msg_type: "addColl",
+      name: "live",
+      type: "live",
+      file: {"sourceUrl": `proxy:${proxyPath}`},
+      skipExisting: false,
+      extraConfig: {
+        "prefix": proxyPath, 
+        "isLive": false,
+        "injectScripts": ["https://hypothes.is/embed.js"],
+        "baseUrl": baseUrl.href,
+        "baseUrlHashReplay": true,
+        "noRewritePrefixes": "https://hypothes.is/",
+        "injectRelCanon": true,
+        "csp": "default-src 'unsafe-eval' 'unsafe-inline' 'self' data: blob: mediastream: ws: wss: *.hypothes.is hypothes.is; form-action 'self'",
+      },
+    };
+
+    return await new Promise((resolve) => {
+      if (!navigator.serviceWorker.controller) {
+        navigator.serviceWorker.addEventListener("controllerchange", (event) => {
+          navigator.serviceWorker.controller.postMessage(msg);
+          resolve(true);
+        });
+      } else {
+        navigator.serviceWorker.controller.postMessage(msg);
+        resolve(false);
+      }
+    });
+  }
+
+  function updateIframe() {
+    const iframe = document.querySelector("iframe");
+
+    if (!iframe) {
+      return;
+    }
+
+    if (!window.location.hash) {
+      iframe.srcdoc = "Enter URL in the hashtag to load";
+      return;
+    }
+    const url = window.location.hash.slice(1);
+
+    iframe.src = "/wabac/live/mp_/" + url;
+  }
+
+  window.addEventListener("load", async () => {
+    await initSW();
+
+    updateIframe();
+  });
+
+  window.addEventListener("hashchange", () => updateIframe());
+</script>
+<style>
+  body, html {
+    margin: 0px;
+    padding: 0px;
+    width: 100vw;
+    height: 100vh;
+  }
+</style>
+</head>
+<body>
+<iframe id="content" width="100%" height="100%" style="border: 0px; width: 100%; height: 100%"></iframe>
+</body>
+</html>
